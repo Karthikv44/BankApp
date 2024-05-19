@@ -2,6 +2,11 @@ from abc import ABC, abstractmethod
 from Util.dbconn import DBConnection
 from tabulate import tabulate
 from Entity.customer import Customer
+from Exception import (
+    InsufficientFundException,
+    InvalidAccountException,
+    OverDraftLimitExceededException,
+)
 
 # class ICustomerServiceProvider(ABC):
 #     @abstractmethod
@@ -30,7 +35,7 @@ from Entity.customer import Customer
 
 
 class ICustomerServiceProviderImpl(DBConnection):
-    
+
     def type(self, account_number):
         try:
             self.cursor.execute(
@@ -82,24 +87,24 @@ class ICustomerServiceProviderImpl(DBConnection):
             balance = self.account_balance(account_number)
             type = self.type(account_number)
             if type == "Savings":
-                if(balance > amount and amount > 500):
+                if balance > amount and amount > 500:
                     self.cursor.execute(
-                    '''
+                        """
                     UPDATE account SET balance = (?) WHERE account_number = (?);
-                    ''',
-                    (balance - amount, account_number)
+                    """,
+                        (balance - amount, account_number),
                     )
                     self.conn.commit()
                 else:
-                    print("Insufficient Balance")
+                    raise InsufficientFundException
             elif type == "Current":
                 overdraftlimit = -1000
-                if((balance - amount) > overdraftlimit ):
+                if (balance - amount) > overdraftlimit:
                     self.cursor.execute(
-                    '''
+                        """
                     UPDATE account SET balance = (?) WHERE account_number = (?);
-                     ''',
-                    (balance - amount, account_number),
+                     """,
+                        (balance - amount, account_number),
                     )
                     self.conn.commit()
                 else:
@@ -109,13 +114,17 @@ class ICustomerServiceProviderImpl(DBConnection):
 
     def transfer(self, from_account_number, to_account_number, amount):
         try:
-            self.cursor.execute("UPDATE Account SET Balance = Balance - ? WHERE account_number = ?", 
-                            (amount, from_account_number))
+            self.cursor.execute(
+                "UPDATE Account SET Balance = Balance - ? WHERE account_number = ?",
+                (amount, from_account_number),
+            )
 
-        # Add amount to the receiver's account
-            self.cursor.execute("UPDATE Account SET Balance = Balance + ? WHERE account_number = ?",
-                             (amount, to_account_number))
-        
+            # Add amount to the receiver's account
+            self.cursor.execute(
+                "UPDATE Account SET Balance = Balance + ? WHERE account_number = ?",
+                (amount, to_account_number),
+            )
+
             self.conn.commit()
 
             print("Transaction Successful")
@@ -124,20 +133,22 @@ class ICustomerServiceProviderImpl(DBConnection):
 
     def get_account_details(self, account_number):
         try:
-            self.cursor.execute("Select * from account WHERE account_number = ?",
-                                (account_number)
+            self.cursor.execute(
+                "Select * from account WHERE account_number = ?", (account_number)
             )
             details = self.cursor.fetchall()
             headers = [column[0] for column in self.cursor.description]
             print(tabulate(details, headers=headers, tablefmt="psql"))
         except Exception as e:
-            print(e)    
+            print(e)
 
     def get_transactions(self, account_number, from_date, to_date):
         try:
-            self.cursor.execute('''SELECT date, Description, transaction_amount FROM Transactions 
-                                WHERE account_number = ? AND date >= ? AND date <= ? ''',
-                                (account_number, from_date, to_date)
+            self.cursor.execute(
+                """SELECT date, Description, transaction_amount FROM Transactions 
+                                WHERE account_number = ? AND date >= ? AND date <= ? 
+                                order by date""",
+                (account_number, from_date, to_date),
             )
             details = self.cursor.fetchall()
             headers = [column[0] for column in self.cursor.description]
@@ -146,15 +157,58 @@ class ICustomerServiceProviderImpl(DBConnection):
             print(e)
 
 
-class SavingsAccount:
-    minimum_balance = 500
-    
-    def withdraw(self, balance, account_number, amount):
-        
-        pass
-
-
-class CurrentAccount:
-    
+class SavingsAccount(ICustomerServiceProviderImpl):
     def withdraw(self, account_number, amount):
-        pass
+        try:
+            balance = self.account_balance(account_number)
+            if balance > amount and amount > 500:
+                self.cursor.execute(
+                    """
+                UPDATE account SET balance = (?) WHERE account_number = (?);
+                """,
+                    (balance - amount, account_number),
+                )
+                print("Successful withrawal")
+                self.conn.commit()
+            else:
+                raise InsufficientFundException
+        except Exception as e:
+            print(e)
+
+
+class CurrentAccount(ICustomerServiceProviderImpl):
+
+    def withdraw(self, account_number, amount):
+        try:
+            balance = self.account_balance(account_number)
+            overdraftlimit = -1000
+            if (balance - amount) > overdraftlimit:
+                self.cursor.execute(
+                    """
+                UPDATE account SET balance = (?) WHERE account_number = (?);
+                    """,
+                    (balance - amount, account_number),
+                )
+                self.conn.commit()
+            else:
+                raise OverDraftLimitExceededException
+        except Exception as e:
+            print(e)
+
+class ZeroBalance(ICustomerServiceProviderImpl):            
+    def withdraw(self, account_number, amount):
+        try:
+            balance = self.account_balance(account_number)
+            if amount > 0:
+                self.cursor.execute(
+                    """
+                UPDATE account SET balance = (?) WHERE account_number = (?);
+                """,
+                    (balance - amount, account_number),
+                )
+                print("Successful withrawal")
+                self.conn.commit()
+            else:
+                raise InsufficientFundException
+        except Exception as e:
+            print(e)

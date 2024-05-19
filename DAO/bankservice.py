@@ -43,7 +43,7 @@ class BankServiceProvider(ICustomerServiceProviderImpl,DBConnection ):
 
     def listAccounts(self):
         try:
-            self.cursor.execute("Select * from account",)
+            self.cursor.execute("Select * from account")
             details = self.cursor.fetchall()
             headers = [column[0] for column in self.cursor.description]
             print(tabulate(details, headers=headers, tablefmt="psql"))
@@ -55,9 +55,13 @@ class BankServiceProvider(ICustomerServiceProviderImpl,DBConnection ):
         
     def calculate_interest(self, account_number):
         try:
-            interest_rate = 0.08
-            balance = self.account_balance(account_number)
-            interest = balance * (interest_rate / 100)
-            print(f"Your interest is {interest}")
+            type_account = self.type(account_number)
+            if(type_account == 'Savings'):
+                interest_rate = 0.08
+                balance = self.account_balance(account_number)
+                interest = float(balance) * interest_rate
+                print(f"Your interest is {interest}")
+            else:
+                print("It is not a savings account")
         except Exception as e:
             print(e)    
