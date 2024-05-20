@@ -1,4 +1,5 @@
-from .customerservice import ICustomerServiceProviderImpl
-from .bankrepository import IBankRepository
-from .bankservice import BankServiceProvider
+# Barrel Method
 
+from .customerservice import ICustomerServiceProviderImpl, SavingsAccount, CurrentAccount, ZeroBalance
+from .bankrepository import IBankRepositoryImpl
+from .bankservice import IBankServiceProviderImpl

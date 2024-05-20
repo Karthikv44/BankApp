@@ -1,4 +1,7 @@
 class dbUtil:
+
+    # Giving details of database
+
     @staticmethod
     def get_property_string():
         server_name = "DESKTOP-FN5E0G8\SQLEXPRESS"
