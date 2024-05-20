@@ -1,5 +1,3 @@
-from DAO import ICustomerServiceProviderImpl
-from DAO import BankServiceProvider
 from DAO import IBankRepository
 # class Customer:
 #     def __init__(
